@@ -11,35 +11,33 @@
 
 -------------
 
+<img alt="Demo" src="https://dev.mri.cnrs.fr/attachments/download/3405/find-obj-dab.gif">
+
 ## 1. What is it?
 
-This pair of scripts was created to work on some H-DAB images.
-On each slide, several different organs are present, not touching each other.
-The first script (`find-objects.groovy`) was created to find and create an independent annotation for every organ on each slide.
-The second one (`find-dab.groovy`) takes the annotations produced by the first script and measures the area (in µm²) positive to DAB.
-Since the total area of each annotation (== the total area of each organ) is known, we just have to use a spreadsheet software to process the ratio (area DAB / total area) to have the percentage of positivity within an organ.
+- On each slide, several different organs are present, not touching each other.
+- The `find_objects_and_dab.groovy` script was created to find and create an independent annotation for every organ on each slide. Then, it runs a pixel classifier into each newly created annotation to measure the DAB-positive area.
+- Since the total area of each annotation (== the total area of each organ) is known, we just have to use a spreadsheet software to process the ratio (area DAB / total area) to have the percentage of positivity within an organ.
 
-## 2. How to use these scripts
+## 2. How to use this script
 
-Before starting don't forget to do the color deconvolution of your images (Estimate stain vectors) and to apply the same one to all your batch. The default ones are certainly wrong as they are based on the whole image, and are re-processed for every image.
+Before starting don't forget to do the color deconvolution of your images ("Estimate stain vectors") and to apply the same one to all your batch.
 
 ### a. First script: find-objects
 
-- Makes the assumption that a pixel classifier named `find-objects` is available in your project.
-- Open it in your script editor, tune the settings for the **smallest hole** and the **smallest object**.
-- Run the script for the project, it will produce an `Organ` annotation for each object.
+- We make the assumption that pixel classifiers named `find-objects` and `find-dab` are available in your project.
+- Open the script and adjust the settings:
+    - `_SMALLEST_HOLE`: Area of the smallest hole. Any hole smaller than this area in the detected objects will be filled.
+    - `_SMALLEST_OBJECT`: Area of the smallest object. Anything smaller will be considered as some debris and be discarded.
+    - `_TARGET_CLASS`: Class predicted by your `find-objects` classifier, that will also be the class of the new annotations.
+- Run the script for the project, it will produce an annotation this the class `_TARGET_CLASS` for each object.
 - Take a look at every slide to remove every debris that my have been caught.
+- You can now find a "find DAB: positive area" measurement in every annotation.
 
-### b. Second script: find-dab
-
-- Makes the assumption that a pixel classifier named `find-dab` is available in your project.
-- Open it in your script editor, and run it for the whole project.
-- Now, each annotation has an area of positivity to the DAB stain.
-
-### c. Last phase
+### b. Export measures
 
 - Create new classes for every type of organ you have (liver, lung, kidney, ...)
-- Replace the `Organ` class by the class corresponding to the correct organ.
+- Replace the `_TARGET_CLASS` class by the class corresponding to the correct organ.
 - Now, it is possible to go in `Measure` > `Export measurements`.
 - Select the correct images, choose your output path, in 'export type' use 'Annotation'. Press the `Export` button.
 - In your TSV, you have a column containing the class of each ROI (liver, lung, ...), a column with the total area of the organ, and the area of positivity to the DAB staining.

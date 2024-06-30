@@ -7,6 +7,7 @@ import qupath.lib.scripting.QP
 
 _SMALLEST_OBJECT = 640000.0; // Smallest area to reach for a detection to become an object: value in µm²
 _SMALLEST_HOLE   = 380000.0; // Below this area, a hole in the detection will be filled: value in µm²
+_TARGET_CLASS    = "Organ";
 
 // = = = = = = = = = =  CONSTANTS = = = = = = = = = = = = = = = = = =
 
@@ -61,14 +62,14 @@ def dumpMemory() {
 
 def removeAnnotations() {
     resetSelection();
-    selectObjectsByClassification("training-set", "Organ");
+    selectObjectsByClassification("training-set", _TARGET_CLASS);
     clearSelectedObjects();
 }
 
 
 def getNObjects() {
     resetSelection();
-    selectObjectsByClassification("Organ");
+    selectObjectsByClassification(_TARGET_CLASS);
     def nOrgans = getSelectedObjects().size();
     resetSelection();
     return nOrgans;
@@ -80,5 +81,11 @@ def main() {
     removeAnnotations();
     checkForClassifier(_OBJ_CLASSIFIER);
     createAnnotationsFromPixelClassifier("find-objects", _SMALLEST_OBJECT, _SMALLEST_HOLE, "SPLIT");
-    Dialogs.showInfoNotification("Organs segmented", getNObjects().toString() + " chunks found in " + QP.getCurrentImageName());
+   
+    resetSelection();
+    selectObjectsByClassification(_TARGET_CLASS);
+    addPixelClassifierMeasurements("find-dab", "find-dab");
+    resetSelection();
+    
+    Dialogs.showInfoNotification(_TARGET_CLASS + " segmented", getNObjects().toString() + " chunks found in " + QP.getCurrentImageName());
 }

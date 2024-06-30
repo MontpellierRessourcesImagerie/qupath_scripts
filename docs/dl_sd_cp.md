@@ -12,6 +12,8 @@
 
 -------------
 
+<img alt="Demo" src="https://dev.mri.cnrs.fr/attachments/download/3406/dl-demo.gif">
+
 ## 1. Problems
 
 - The goal is to segment cells, nuclei or blob-like shapes on some 2D image (fluo or IHC) in QuPath.
@@ -41,7 +43,8 @@ The available settings are the following:
 
 ## 3. Launch a worker
 
-The workers will try to read and used the values stored in `segmentation-settings.json` located in the project's folder.
+The workers will try to read and used the values stored in `segmentation-settings.json` located in the project's folder. 
+Don't forget to create the annotations in which the segmentation will take place on each image.
 
 ### a. Use CellPose
 
@@ -64,6 +67,7 @@ If you validated the settings in the previous step, you can simply run the `segm
 ## TO-DO
 
 - Finish the StarDist worker.
+- Fix the RGB version on the CellPose worker.
 - Add an option "Run everywhere" to automatically create a rectangle taking the whole image and run the segmentation in there.
 - Add a check for the settings file in the workers.
 

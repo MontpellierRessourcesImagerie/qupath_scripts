@@ -1,14 +1,9 @@
-# Scripts proposed by MRI-CIA
+A collection of non project-specific scripts, that can be integrated in any workflow.
 
 ## 1. Content of this repository
 
-### Generalistic
-
 - [Segmentation with CellPose or StarDist](dl_sd_cp.md)
 - [Find objects and DAB](find-objects-and-dab.md)
-
-### Specialized
-
 - [Measure stained areas](find-stained-area.md)
 
 ## 2. Instructions

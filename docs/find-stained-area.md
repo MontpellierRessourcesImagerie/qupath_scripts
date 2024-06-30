@@ -11,6 +11,8 @@
 
 -------------
 
+<img alt="Demo" src="https://dev.mri.cnrs.fr/attachments/download/3404/stained-areas.gif">
+
 ## 1. Problems
 
 - Only tested on fluo images.
