@@ -7,13 +7,12 @@
     <img class="version" src="https://img.shields.io/badge/qupath_version-0.5.1-ffee00">
     <a style="vertical-align: top;" href="https://github.com/MontpellierRessourcesImagerie/qupath_scripts/issues"><img src='https://img.shields.io/github/issues/MontpellierRessourcesImagerie/qupath_scripts'></a>
     <img class="project" src="https://img.shields.io/badge/project-%232008-cd1818?logo=redmine">
-    <img class="category" src="https://img.shields.io/badge/category-Segmentation-b503fc">
     <img class="status" src="https://img.shields.io/badge/status-in_dev-6495ED">
 </div>
 
 -------------
 
-## 1. Problematic
+## 1. Problems
 
 - The goal is to segment cells, nuclei or blob-like shapes on some 2D image (fluo or IHC) in QuPath.
 - A fine control is required to choose which annotations we will segment objects into.

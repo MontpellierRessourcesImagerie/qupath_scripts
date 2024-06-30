@@ -1,17 +1,31 @@
-# Find stained areas
+# Measure stained areas
 
-## What is it?
+<div id="shields">
+    <img class="modality fluo" src="https://img.shields.io/badge/modality-FLUO-fc8803">
+    <a href="https://github.com/MontpellierRessourcesImagerie/qupath_scripts/tree/main/find-stained-area"><img class="scripts" src="https://img.shields.io/badge/code-Groovy-6495ED?logo=github"></a>
+    <img class="version" src="https://img.shields.io/badge/qupath_version-0.5.1-ffee00">
+    <a style="vertical-align: top;" href="https://github.com/MontpellierRessourcesImagerie/qupath_scripts/issues"><img src='https://img.shields.io/github/issues/MontpellierRessourcesImagerie/qupath_scripts'></a>
+    <img class="project" src="https://img.shields.io/badge/project-%231994-cd1818?logo=redmine">
+    <img class="status" src="https://img.shields.io/badge/status-deployed-6495ED">
+</div>
 
-This scripts applies a collection of pixel classifiers previously trained in order to find the global area on the whole image of a certain element (stained area, positive to something, object present, ...)
+-------------
 
-## How does it work?
+## 1. Problems
+
+- Only tested on fluo images.
+- We want to measure (in µm²) the area covered by every stain on the whole image (== the positive area on each channel).
+- Using a pixel classifier by stain (== by channel), we will process an area per channel.
+- These measures will be attached to an annotation covering the whole image (automatically generated).
+
+## 2. How does it work?
 
 - This script starts by creating a rectangle annotation taking the whole image.
 - Then it runs a collection of pixel classifier. Each of these classifiers produces an area of positivity to something, saved in µm².
 - The result of the classifier is attached to the annotation, so you can visualize it by going in the `Annotations` tab and clicking on the annotation.
 - Once you will export the results, you will have a column of area for each element to locate, and the area of the whole rectangular annotation. If you are interested in a percentage of positivity, you can simply divide the area of positivity by the area of the global annotation.
 
-## How to use it?
+## 3. How to use it?
 
 1. Make sure that all your classifiers are in the `classifiers` folder located in the folder of your QuPath project.
 2. Take the `stain-per-area.groovy` script provided here and move it in the `scripts` folder located in your QuPath project (along side the `classifiers` folder). If it doesn't exist, create it.

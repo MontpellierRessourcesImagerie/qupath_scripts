@@ -9,7 +9,7 @@
 
 ### Specialized
 
-- [Find stained areas](find-stained-area.md)
+- [Measure stained areas](find-stained-area.md)
 
 ## 2. Instructions
 
