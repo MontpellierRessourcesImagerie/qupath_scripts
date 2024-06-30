@@ -1,4 +1,4 @@
-# FIND STAINED AREA
+# Find stained areas
 
 ## What is it?
 
