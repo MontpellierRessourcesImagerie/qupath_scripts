@@ -1,4 +1,4 @@
-# Find objects and DAB
+# Find objects and measure DAB
 
 <div id="shields">
     <img class="modality ihc" src="https://img.shields.io/badge/modality-IHC-fc8803">
@@ -23,7 +23,7 @@
 
 Before starting don't forget to do the color deconvolution of your images ("Estimate stain vectors") and to apply the same one to all your batch.
 
-### a. First script: find-objects
+### a. Use the script
 
 - We make the assumption that pixel classifiers named `find-objects` and `find-dab` are available in your project.
 - Open the script and adjust the settings:
@@ -41,3 +41,14 @@ Before starting don't forget to do the color deconvolution of your images ("Esti
 - Now, it is possible to go in `Measure` > `Export measurements`.
 - Select the correct images, choose your output path, in 'export type' use 'Annotation'. Press the `Export` button.
 - In your TSV, you have a column containing the class of each ROI (liver, lung, ...), a column with the total area of the organ, and the area of positivity to the DAB staining.
+
+
+
+## Tags
+
+<span class="script_tag">IHC</span>
+<span class="script_tag">Find objects</span>
+<span class="script_tag">Instances</span>
+<span class="script_tag">H-DAB</span>
+<span class="script_tag">Measure</span>
+<span class="script_tag">Positive area</span>
