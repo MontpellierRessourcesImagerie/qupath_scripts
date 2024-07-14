@@ -1,36 +1,31 @@
+import qupath.lib.scripting.QP;
+import qupath.fx.dialogs.Dialogs;
+
 import qupath.ext.biop.cellpose.Cellpose2D;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import org.json.JSONObject;
 
 
-def settings_available() {
-    def filePath = QP.getProject().getPath().getParent().resolve("segmentation-settings" + ".json").toString();
-    if (Files.exists(Paths.get(filePath))) {
-        return filePath;
-    }
-    return null;
-}
-
-
-def import_settings() {
-    def filePath = settings_available();
-    if (filePath == null) {
-        return null;
-    }
-    def jsonContent = new String(Files.readAllBytes(Paths.get(filePath)));
-    return new JSONObject(jsonContent);
+/// Returns the physical size of a pixel in µm for the current image.
+double get_pixel_size() {
+    return QP.getCurrentImageData().getServer().getPixelCalibration().getPixelWidthMicrons();
 }
 
 
 def prepare_model(settings) {
-    def p_size = settings.getDouble("pixelSize");
+    def p_size = get_pixel_size();
     def diameter = settings.getDouble("diameter");
     def diameter_pixels = diameter / p_size;
-    def cellpose = Cellpose2D.builder(settings.getString("model"))
+    def model = settings.getString("model");
+    def channel = settings.getString("channel");
+    if (model.endsWith(".pb")) {
+        model = QP.getProject().getPath().getParent().resolve("cellpose").resolve(model);
+    }
+    
+    def cellpose = Cellpose2D.builder(model)
                    .pixelSize(p_size)
-                   .channels(settings.getString("channel"))
+                   // .channels(settings.getString("channel"))
                    .normalizePercentilesGlobal(
                         settings.getDouble("percentile"), 
                         100.0 - settings.getDouble("percentile"), 
@@ -40,6 +35,10 @@ def prepare_model(settings) {
                    .diameter((int)diameter_pixels)
                    .measureShape()
                    .measureIntensity();
+    
+    if (channel != "RGB") {
+        cellpose.channels(channel);
+    }
     
     if (settings.getBoolean("useExpansion")) {
         cellpose.cellExpansion(settings.getDouble("expansionDistance"));
@@ -53,48 +52,45 @@ def prepare_model(settings) {
         cellpose.classify(settings.getString("assignClass"));
     }
 
-    cellpose = cellpose.build();
-    return cellpose;
+    return cellpose.build();
 }
 
 
 def get_working_area(settings) {
-    // We work in priority on the selected objects
-    def pathObjects = getSelectedObjects(); // To process only selected annotations, useful while testing
-    if (!pathObjects.isEmpty()) {
-        print("Working on selected annotations (" + pathObjects.size() + " items).");
-        return pathObjects; 
+    def input_area  = settings.getString("targetClass");
+    def pathObjects = null;
+    
+    if (input_area.startsWith(":: ")) {
+        if (input_area == ":: All annotations") {
+            pathObjects = QP.getAnnotationObjects();
+        }
+        else if (input_area == ":: Active annotation") {
+            pathObjects = QP.getSelectedObjects();
+        }
+        else if (input_area == ":: Full image") {
+            QP.resetSelection();
+            QP.createFullImageAnnotation(true);
+            pathObjects = QP.getSelectedObjects();
+        }
     }
-
-    // Then we try if we have a target class
-    resetSelection();
-    if (settings.has("targetClass")) {
-        def tgt_cls = settings.getString("targetClass");
-        selectObjectsByClassification(tgt_cls);
-        pathObjects = getSelectedObjects();
-        print("Working on annotations with target class [" + tgt_cls + "] (" + pathObjects.size() + " items).");
+    else {
+        QP.resetSelection();
+        QP.selectObjectsByClassification(input_area);
+        pathObjects = QP.getSelectedObjects();
     }
-    if (!pathObjects.isEmpty()) {
-        return pathObjects;
-    }
-
-    // Otherwise, we segment in every annotation
-    pathObjects = getAnnotationObjects();
-    if (!pathObjects.isEmpty()) {
-        return pathObjects;
-    }
-
-    // In the last case, we won't segment anything.
-    Dialogs.showErrorMessage("Cellpose", "Please select a parent object!")
-    return null;
+    
+    return pathObjects;
 }
 
 
 def run_cellpose() {
-    def settings  = import_settings();
     def model     = prepare_model(settings);
-    def imageData = getCurrentImageData();
+    def imageData = QP.getCurrentImageData();
     def roi       = get_working_area(settings);
+    if (roi == null || roi.size() == 0) {
+        Dialogs.showWarningNotification("CellPose", "No working area defined for: " + QP.getCurrentImageName());
+        return;
+    }
     model.detectObjects(imageData, roi);
 }
 

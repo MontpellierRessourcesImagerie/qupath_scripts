@@ -12,64 +12,109 @@
 
 -------------
 
-<img alt="Demo" src="https://dev.mri.cnrs.fr/attachments/download/3406/dl-demo.gif">
+<img alt="Demo" src="https://dev.mri.cnrs.fr/attachments/download/3429/sdcp-gui.gif">
 
-## 1. Problems
+## 1. Functional specifications
 
-- The goal is to segment cells, nuclei or blob-like shapes on some 2D image (fluo or IHC) in QuPath.
-- A fine control is required to choose which annotations we will segment objects into.
-- The users don't have to deal with the Groovy code for the settings.
-- A solution that still allows us to use the batch mode.
+- The goal is to segment some objects (cells, nuclei, ...) on some 2D images (fluo or IHC) in QuPath using CellPose and/or StarDist.
+- We want to prevent the final users from having to edit the settings through some Groovy code.
+- We need to integrate this segmentation step into a script that can be run in batch mode ("Run for project").
+- For reproducibility purposes, a history of used settings is required.
 
-## 2. Use the settings prompt
+## 2. Install
 
-This script opens a prompt asking you for the settings you want to run CellPose or StarDist with.
-Much settings are common to both networks, so this prompt can be used in either case.
-However, we still want to be able to run our workflow in batch mode without having a prompt poping for every image.
-So this script simply generates a JSON file with the settings you chose, and saves it in the project's folder.
-Once this script was run, the last settings you provided will be used every time you call CellPose or StarDist.
-Then, you can simply integrate the call to StarDist or CellPose in your worflow, without worrying about the settings.
+### a. Install the scripts
+
+To use these scripts, you simply need to download all the `.groovy` files from this repository and place them in the `scripts` folder within your project's folder. If the `scripts` folder doesn't exist, create it. Your project's hierarchy should look like that:
+
+```bash
+. 📁 my-project-folder/
+│    ├─ 📄 project.qpproj
+│    ├─ 📁 models/
+│    ├─ 📁 scripts/
+│    │     ├─ 📄 ask-dl-settings.groovy
+│    │     ├─ 📄 launch-cpsd.groovy
+│    │     ├─ 📄 segment-cellpose.groovy
+│    │     ├─ 📄 segment-stardist.groovy
+│    │     ├─ 📄 workflow.groovy
+```
+
+The `workflow.groovy` is just a basic template containing the skeleton of a script launching the segmentation process, it is not required.
+
+### b. Install CellPose
+
+Before being able to use CellPose from QuPath, don't forget to install the Python package `cellpose` with `pip`, and the bridge between QuPath and the CellPose server.
+
+- [CellPose module](https://pypi.org/project/cellpose/)
+- [CellPose-QuPath bridge](https://github.com/BIOP/qupath-extension-cellpose)
+
+### c. Install StarDist
+
+Before being able to use StarDist from QuPath, don't forget to install the bridge between QuPath and StarDist.
+
+- [StarDist-QuPath bridge](https://github.com/qupath/qupath-extension-stardist)
+
+## 3. Use the settings prompt
+
+This script, which can be found under the name `ask-dl-settings` in Automate > Project scripts, opens a prompt asking for the settings you want to run CellPose or StarDist with.
+It allows you to set up common settings for both CellPose and StarDist, giving you control in either case.
+One goal is to run our workflow in batch mode without a prompt appearing for every image. For this purpose, this script generates a JSON file with your chosen settings and saves it in the project's folder.
+Once you press "OK" on the window this script opens, your future runs of CellPose or StarDist will use these settings.
+Then, you can integrate the call to StarDist or CellPose in your workflow without worrying about the settings.
+You can reuse the generated file in any other project or even make it available for other users.
 The available settings are the following:
 
-- `Channel to segment`: The channel on which are the elements that you want to segment (ex: DAPI for nuclei, ...). In case of IHC, this will be the stain marking what you are interested in.
-- `Class to segment`: The segmentation is always run within an annotation, never globaly. If you have several annotations in your image, but want to run the segmentation only on some of them, give it a special class and indicate it in this field. (ex: We have a slide on which we have a slice of liver, a slice of heart and a slice of brain. Each organ was previously segmented and given the correct class. At this point we have an annotation around the liver with the class "Liver", an annotation around the heart with the class "Heart", ... However, we are only interested in what is going on in the liver. If we run the segmentation right now, all the nuclei in our organs will be segmented without any difference, but if we give the class "Liver" to the field `Class to segment`, only nuclei in the liver will be segmented.)
-- `Model to use`: Model used (network's weights) to segment your image. For StarDist, they have to be located in a folder named `models` in your project's folder. For both CellPose and StarDist, if you want to use a custom model, it has to be in the `models` folder.
-- `Normalization percentage`: placeholder
-- `Use cell expansion?`: If only your nuclei are stained but you want to measure some properties in the entire cells, you can you cell expansion. Basically, the nuclei will be segmented on your image and will be dilated of a given distance to generate the cytoplasm. This approach relies only on the dilation distance and the collisions, the pixel values are not used to deduce the cytoplasm.
-- `Expansion distance`: Only useful if the previous checkbox is ticked. It is the distance by which your nucleus will grow in every direction to try to deduce the boundaries of the cytoplasm.
-- `Classify as...`: The class that every segmented element will receive.
-- `Create annotations?`: placeholder.
-- `Median cell diameter`: Median diameter of the object (not necessarily a cell) that you want to segment. You use the ruler in the bottom-left of the screen to try to approximate this value. (Note: Only CellPose uses this parameter).
+- `Channel to segment`: In the case of fluorescence, it is the channel on which our objects are. Otherwise, for Brightfield (H-DAB, H&E, ...), the three channels (red, green, and blue) are used.
+- `Input annotation(s)`: Annotations in which our objects of interest are. If you choose a class name within the list, we will only segment the annotations having that class. Otherwise, you have some other choices:
+    - `:: Active annotation`: Segment only within the active annotation.
+    - `:: Full image`: Creates a rectangle annotation over the whole image, makes it active, and runs the segmentation.
+    - `:: All annotations`: Will segment the objects within every annotation.
+- `Network`: The network to use is either CellPose or StarDist.
+- `Model`: The model that we use for the selected network. The list includes the basic models for this network and the models within the "models" folder in the project's folder. If you have a custom model for StarDist, place it in `models/stardist`; for CellPose, in `models/cellpose`.
+- `Normalization percentile`: If you choose the value α for this setting, the global image normalization will be between (α, 100.0-α).
+- `Use cell expansion?`: In the case where we segment nuclei without cytoplasm staining, using this option will take each nucleus polygon and expand it on a certain distance to roughly estimate the area of the whole cell.
+- `Expansion distance (µm)`: Distance on which the nuclei polygons will grow to turn them into cytoplasm polygons.
+- `Classify results as`: Each segmented object will receive your chosen class here. If you leave it blank, the results won't be of any specific class.
+- `Create annotations?`: It allows us to choose whether we should create annotations or detections.
+- `Median cell diameter (µm)`: This parameter only affects CellPose. You can use the ruler in the viewer's lower-left corner to help estimate this size.
+- `Save settings as`: Name that will receive the file containing the settings within the project's folder. It must only contain letters, numbers, dashes, and underscores.
 
-## 3. Launch a worker
+## 4. Use the launcher in a workflow
 
-The workers will try to read and used the values stored in `segmentation-settings.json` located in the project's folder. 
-Don't forget to create the annotations in which the segmentation will take place on each image.
+### a. What is it?
 
-### a. Use CellPose
+The launcher will try to access and extract the settings from any `cnrs-mri-cia-cpsd.XXX.json` file that it will find in the project's directory. Then, it will pass them over to a worker and run it. Here, `XXX` corresponds to the name that you provided in the `Save settings as` field. The launcher is shared by both CellPose and StarDist; however, the workers are specialized.
 
-\note 
-- CellPose depends on a Python runner. You will need a Python environment with CellPose installed (`pip install cellpose`) to run the corresponding script. Don't forget to indicate the Python's path into your QuPath settings (Edit > Preferences > CellPose).
-- CellPose requires you to download and install the '[qupath-extension-cellpose](https://github.com/BIOP/qupath-extension-cellpose/releases)' plugin, which you can do by downloading the most recent ".jar" file and drag-n-droping it in the QuPath window.
+### b. How to use the launcher
 
-If you validated the settings in the previous step, you can simply run the `segment-cellpose.groovy` script.
+Usually, segmenting your objects is only a fragment of your project. You will certainly want to measure some features in what you segmented, count your objects or anything else.
+To execute your workflow, you will very likely want to create a script and run it for all the images in your project.
 
+From this point, we consider that you found the correct settings with the settings prompt script.
 
-### b. Use StarDist
+To integrate the segmentation to your workflow, you can use either `workflow.groovy` or the following snippet:
 
-\note 
-- StarDist's models are not bundled in the JAR and are not automatically downloaded either (contrary to CellPose), so don't forget to download the models you need (.pb files) from the [qupath-stardist repository](https://github.com/qupath/models/tree/main/stardist). The models have to be placed in a folder named `models` in your project's folder.
-- StarDist requires you to download and install the '[qupath-extension-stardist](https://github.com/qupath/qupath-extension-stardist/releases)' plugin, which you can do by downloading the most recent ".jar" file and drag-n-droping it in the QuPath window.
+```java
+// At the very begining of your script:
+import groovy.lang.GroovyShell;
+import groovy.lang.Binding;
 
-If you validated the settings in the previous step, you can simply run the `segment-stardist.groovy` script.
+// First step of your workflow:
+// ...
 
+// Second step of your workflow:
+// ...
 
-## TO-DO
+// Time to segment your objects
+// Don't forget to replace "XXX" by the name of your settings file
+Binding binding = new Binding();
+binding.setVariable("settings_name", "XXX");
+GroovyShell shell = new GroovyShell(this.class.classLoader, binding);
+shell.evaluate(QP.getProject().getScripts().get("launch-cpsd"));
 
-- Finish the StarDist worker.
-- Fix the RGB version on the CellPose worker.
-- Add an option "Run everywhere" to automatically create a rectangle taking the whole image and run the segmentation in there.
-- Add a check for the settings file in the workers.
+// Following steps of your workflow:
+// ...
+```
 
 
 ## Tags
@@ -80,3 +125,5 @@ If you validated the settings in the previous step, you can simply run the `segm
 <span class="script_tag">Segmentation</span>
 <span class="script_tag">Nuclei</span>
 <span class="script_tag">Batch</span>
+<span class="script_tag">GUI</span>
+<span class="script_tag">Cells</span>

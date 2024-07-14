@@ -1,114 +1,146 @@
-import qupath.ext.stardist.StarDist2D
-import qupath.lib.projects.Project
-import java.nio.file.Files
-import java.nio.file.Paths
-import qupath.lib.scripting.QP
+import qupath.lib.scripting.QP;
 import qupath.fx.dialogs.Dialogs;
 
+import qupath.ext.stardist.StarDist2D;
 
-// = = = = = = = = SETTINGS = = = = = = = = = = = = =
-
-_CLASSIFIERS             = ["find-yellow", "find-red", "find-green"];
-_CHANNELS                = ["DaPi", "C2", "Chan3", "4"];
-_MODEL                   = 'dsb2018_heavy_augment';
-_MIN_CELL_AREA           = 30.0;
-_MAX_CELL_AREA           = 1000.0;
-_MIN_MEAN_DAPI_INTENSITY = 6.0;
-
-// = = = = = = = = = = = = = = = = = = = = = = = = = =
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.net.URL;
+import java.io.File;
+import java.nio.file.Path;
+import java.io.FileOutputStream;
+import java.io.BufferedInputStream;
 
 
-// https://qupath.readthedocs.io/en/0.4/docs/tutorials/cell_classification.html
-// https://qupath.readthedocs.io/en/0.4/docs/concepts/classifications.html
-
-main();
-
-
-def removeAnnotations() {
-    QP.selectAllObjects();
-    QP.clearSelectedObjects(false);
-    QP.createFullImageAnnotation(true);
+/// Returns the physical size of a pixel in µm for the current image.
+double get_pixel_size() {
+    return QP.getCurrentImageData().getServer().getPixelCalibration().getPixelWidthMicrons();
 }
 
 
-def getModel(name) {
-    def project = QP.getProject();
-    if (project == null) {
-        Dialogs.showErrorMessage("Check Classifier", "No project is open!");
-        return "";
-    }
+boolean downloadFile(String fileUrl, String destinationPath) {
+    try {
+        URL url = new URL(fileUrl);
+        File destinationFile = new File(destinationPath);
+        url.openConnection().with { conn ->
+            conn.connectTimeout = 10000;
+            conn.readTimeout = 10000;
+            
+            conn.inputStream.withStream { input ->
+                destinationFile.withOutputStream { output ->
+                    input.eachByte(4096) { buffer, bytesRead ->
+                        output.write(buffer, 0, bytesRead);
+                    }
+                }
+            }
+        }
 
-    // Get the project path and construct the path to the classifiers
-    def projectPath = project.getPath().getParent();
-    def classifiersFile = Paths.get(projectPath.toString(), "models", name+".pb");
-
-    // Check if the classifier file exists
-    if (Files.exists(classifiersFile)) {
-        return classifiersFile;
-    } else {
-        Dialogs.showErrorMessage("Check model", "Model '" + name + "' for StarDist was not found.");
-        return "";
+        if (destinationFile.exists()) {
+            return true
+        } else {
+            Dialogs.showErrorNotification("CPSD Network", "Failed to download the model.");
+            return false
+        }
+    } catch (FileNotFoundException e) {
+        Dialogs.showErrorNotification("CPSD Network", "Resource not found: ${e.message}");
+    } catch (MalformedURLException e) {
+        Dialogs.showErrorNotification("CPSD Network", "Invalid URL: ${e.message}");
+    } catch (IOException e) {
+        Dialogs.showErrorNotification("CPSD Network", "Network error: ${e.message}");
+    } catch (Exception e) {
+        Dialogs.showErrorNotification("CPSD Network", "An unexpected error occurred: ${e.message}");
     }
+    return false;
 }
 
 
-def segmentNuclei(pathModel, pixelSize) {
-
-    def stardist = StarDist2D.builder(pathModel.toString())
-          .threshold(0.5)
-          .channels('Channel 1')
-          .normalizePercentiles(5, 95) 
-          .pixelSize(pixelSize)
-          .measureIntensity()
-          .measureShape()
-    //    .createAnnotations()
-          .build();
+def prepare_model(settings) {
+    def p_size = get_pixel_size();
+    def model = settings.getString("model");
+    def model_path = null;
+    def channel = settings.getString("channel");
     
-    // Run detection for the selected objects
-    def imageData = QP.getCurrentImageData();
-    def pathObjects = QP.getSelectedObjects();
-    
-    if (pathObjects.isEmpty()) {
-        Dialogs.showErrorMessage("StarDist", "Please select a parent object!");
-        return;
+    if (model.endsWith(".pb")) { // The model is local.
+        model_path = QP.getProject().getPath().getParent().resolve("models").resolve("stardist").resolve(model);
     }
-    stardist.detectObjects(imageData, pathObjects);
-}
-
-
-def filterNuclei(minArea, maxArea, minIntensity) {
-    def objects = getDetectionObjects();
-    def count = 0;
-    def objectsToRemove = [];
-    
-    objects.each { detection ->
-        def area = detection.getMeasurementList().getMeasurementValue('Area µm^2');
-        def intensity = detection.getMeasurementList().getMeasurementValue('DAPI: Mean');
-        if (area < minArea || area > maxArea || intensity < minIntensity) {
-            objectsToRemove.add(detection);
-            count++;
+    else { // The model must be downloaded.
+        def url = "https://github.com/qupath/models/raw/main/stardist/" + model + ".pb";
+        model_path = QP.getProject().getPath().getParent().resolve("models").resolve("stardist").resolve(model + ".pb");
+        if (!Files.exists(model_path) && downloadFile(url, model_path.toString())) {
+            Dialogs.showInfoNotification("CPSD", "Downloaded model: " + model);
         }
     }
     
-    def imageData = getCurrentImageData();
-    def hierarchy = imageData.getHierarchy();
-    hierarchy.removeObjects(objectsToRemove, true);
+    if (!Files.exists(model_path)) {
+        return null;
+    }
     
-    print("Discarded " + count.toString() + " nuclei.");
-    fireHierarchyUpdate();
+    def stardist = StarDist2D.builder(model_path.toString())
+          .threshold(0.5)
+          // .channels(settings.getString("channel"))
+          .normalizePercentiles(
+                        settings.getDouble("percentile"), 
+                        100.0 - settings.getDouble("percentile"))
+          .pixelSize(p_size)
+          .measureIntensity()
+          .measureShape();
+    
+    if (channel != "RGB") {
+        stardist.channels(channel);
+    }
+    
+    if (settings.getBoolean("useExpansion")) {
+        stardist.cellExpansion(settings.getDouble("expansionDistance"));
+    }
+
+    if (settings.getBoolean("createAnnotations")) {
+        stardist.createAnnotations();
+    }
+
+    if (settings.has("assignClass") && settings.getString("assignClass")) {
+        stardist.classify(settings.getString("assignClass"));
+    }
+
+    return stardist.build();
 }
 
 
-def main() {
-    def pathModel = getModel(_MODEL);
-    removeAnnotations();
-    if (pathModel == "") { return; }
-    QP.setChannelNames(*_CHANNELS);
-    def pixelSize = QP.getCurrentImageData().getServer().getPixelCalibration().getPixelWidthMicrons();
-    segmentNuclei(pathModel, pixelSize);
-    // filterNuclei(_MIN_CELL_AREA, _MAX_CELL_AREA, _MIN_MEAN_DAPI_INTENSITY);
-    QP.runObjectClassifier(*_CLASSIFIERS);
-    Dialogs.showInfoNotification("DONE", "Nuclei segmented and classified for " + QP.getCurrentImageName());
+def get_working_area(settings) {
+    def input_area  = settings.getString("targetClass");
+    def pathObjects = null;
+    
+    if (input_area.startsWith(":: ")) {
+        if (input_area == ":: All annotations") {
+            pathObjects = QP.getAnnotationObjects();
+        }
+        else if (input_area == ":: Active annotation") {
+            pathObjects = QP.getSelectedObjects();
+        }
+        else if (input_area == ":: Full image") {
+            QP.resetSelection();
+            QP.createFullImageAnnotation(true);
+            pathObjects = QP.getSelectedObjects();
+        }
+    }
+    else {
+        QP.resetSelection();
+        QP.selectObjectsByClassification(input_area);
+        pathObjects = QP.getSelectedObjects();
+    }
+    
+    return pathObjects;
 }
 
 
+def run_stardist() {
+    def model     = prepare_model(settings);
+    def imageData = QP.getCurrentImageData();
+    def roi       = get_working_area(settings);
+    if (roi == null || roi.size() == 0) {
+        Dialogs.showWarningNotification("StarDist", "No working area defined for: " + QP.getCurrentImageName());
+        return;
+    }
+    model.detectObjects(imageData, roi);
+}
+
+run_stardist();
