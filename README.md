@@ -1,3 +1,3 @@
 # QuPath scripts (MRI-CIA, CNRS)
 
-Check full documentation: [🔗 GitHub pages](https://montpellierressourcesimagerie.github.io/qupath_scripts)
+🔗 Check the [detailed documentation](https://montpellierressourcesimagerie.github.io/qupath_scripts)
