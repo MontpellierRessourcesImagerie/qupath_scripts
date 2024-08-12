@@ -2,7 +2,7 @@
 
 <div id="shields">
     <img class="modality ihc" src="https://img.shields.io/badge/modality-IHC-fc8803">
-    <a href="https://github.com/MontpellierRessourcesImagerie/qupath_scripts/tree/main/find-objects-and-dab"><img class="scripts" src="https://img.shields.io/badge/code-Groovy-6495ED?logo=github"></a>
+    <a href="https://github.com/MontpellierRessourcesImagerie/qupath_scripts/tree/main/find-objects-and-DAB"><img class="scripts" src="https://img.shields.io/badge/code-Groovy-6495ED?logo=github"></a>
     <img class="version" src="https://img.shields.io/badge/qupath_version-0.5.1-ffee00">
     <a style="vertical-align: top;" href="https://github.com/MontpellierRessourcesImagerie/qupath_scripts/issues"><img src='https://img.shields.io/github/issues/MontpellierRessourcesImagerie/qupath_scripts'></a>
     <img class="project" src="https://img.shields.io/badge/project-%232018-cd1818?logo=redmine">
