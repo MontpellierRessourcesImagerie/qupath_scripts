@@ -1,2 +1,3 @@
-# qupath_scripts
-General qupath scripts that are not project specific
+# QuPath scripts (MRI-CIA, CNRS)
+
+🔗 Check the [detailed documentation](https://montpellierressourcesimagerie.github.io/qupath_scripts)
