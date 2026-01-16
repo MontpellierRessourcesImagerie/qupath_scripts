@@ -9,7 +9,10 @@
 import qupath.ext.stardist.StarDist2D
 import qupath.lib.scripting.QP
 import qupath.lib.gui.dialogs.Dialogs
+import qupath.lib.objects.PathObjects
 
+removeObjects(getAnnotationObjects().findAll{it.getPathClass().toString().contains("Neuron")},true)
+removeObjects(getAnnotationObjects().findAll{it.getPathClass().toString().contains("Ignore")},true)
 // ================= PARAMETERS =================
 def modelPath = "/home/baecker/Documents/mri/in/open-desk/open_desk-2026_01_15/neuron_detection/he_heavy_augment.pb"
 
@@ -53,6 +56,7 @@ stardist.detectObjects(imageData, annotations)
 stardist.close()
 
 println "StarDist finished."
+
 // =======================================
 
 
@@ -65,7 +69,9 @@ listOfClasses = [
     neuronClass,
     ignoreClass
 ]
-pathClasses.addAll(listOfClasses)
+if (!pathClasses.contains(neuronClass)) {
+    pathClasses.addAll(listOfClasses)
+}
 
 int neuronCount = 0
 int ignoreCount = 0
@@ -76,16 +82,13 @@ def detections = QP.getDetectionObjects().findAll {
 
 for (det in detections) {
     roi = det.getROI()
-    print("centroid", centroidX, centroidY)
     def ml = det.getMeasurementList()
-    def region = det.getParent()?.getPathClass()?.getName()?.toLowerCase()
+    def region = det.getParent()?.getName()?.toLowerCase()
     if (!region) {
         det.setPathClass(ignoreClass)
         ignoreCount++
-        m1.put("class-proxy", 0);
         continue
     }
-
     Double area = ml.get("Area µm^2")
     Double diam = ml.get("Max diameter µm")
     Double dab  = ml.get("DAB: Mean")
@@ -94,13 +97,12 @@ for (det in detections) {
     if ([area, diam, dab, h].any { it == null }) {
         det.setPathClass(ignoreClass)
         ignoreCount++
-        m1.put("class-proxy", 0);
         continue
     }
-
     double ratio = dab / Math.max(h, 0.001)
     boolean isNeuron = false
 
+    
     // -------- Cortex (permissive) --------
     if (region == "cortex") {
         isNeuron =
@@ -114,19 +116,18 @@ for (det in detections) {
         isNeuron =
             area >= 120 &&
             diam >= 14 &&
-            ratio >= 1.2
+            ratio >= 1.1
     }
 
     if (isNeuron) {
         det.setPathClass(neuronClass)
         neuronCount++
-        m1.put("class-proxy", 1);
     } else {
         det.setPathClass(ignoreClass)
         ignoreCount++
-        m1.put("class-proxy", 0);
     }
 }
+convertDetectionsToPoints()
 // =======================================
 
 
