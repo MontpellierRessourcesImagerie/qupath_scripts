@@ -2,6 +2,7 @@ A collection of non project-specific scripts, that can be integrated in any work
 
 ## 1. Content of this repository
 
+- [Basic scripts](basics.md)
 - [Segmentation with CellPose or StarDist](dl_sd_cp.md)
 - [Find objects and measure DAB](find-objects-and-dab.md)
 - [Measure stained areas](find-stained-area.md)
